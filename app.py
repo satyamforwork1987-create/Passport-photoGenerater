@@ -41,13 +41,15 @@ SHEET_MARGIN_MM = 5
 PHOTO_GAP_MM = 3
 
 # Lazily-created rembg session (model loads on first use, cached afterwards)
+# u2netp is a distilled, much smaller/lighter model than u2net (~4.7MB vs
+# ~176MB) — used to keep memory usage low on Render's free tier.
 _session = None
 
 
 def get_session():
     global _session
     if _session is None:
-        _session = new_session('u2net')
+        _session = new_session('u2netp')
     return _session
 
 
