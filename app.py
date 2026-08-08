@@ -68,8 +68,28 @@ def fit_cover(img, target_w, target_h):
     return resized.crop((left, top, left + target_w, top + target_h))
 
 
+# Modern phone photos can be 3000-4000px wide / several MB. Running AI
+# background removal at that resolution uses far more memory than a
+# passport photo needs (final output is only ~500px wide at 300 DPI), and
+# can exceed Render's free-tier RAM limit. Downscale before processing.
+MAX_INPUT_DIMENSION = 1200
+
+
+def downscale_if_needed(input_bytes):
+    img = Image.open(io.BytesIO(input_bytes))
+    img = img.convert('RGB')
+    w, h = img.size
+    if max(w, h) > MAX_INPUT_DIMENSION:
+        scale = MAX_INPUT_DIMENSION / max(w, h)
+        img = img.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.LANCZOS)
+    buf = io.BytesIO()
+    img.save(buf, format='JPEG', quality=90)
+    return buf.getvalue()
+
+
 def remove_background_and_recolor(input_bytes, color_key):
     """Remove background from the uploaded image and composite onto a solid color."""
+    input_bytes = downscale_if_needed(input_bytes)
     output_bytes = remove(input_bytes, session=get_session())
     cutout = Image.open(io.BytesIO(output_bytes)).convert('RGBA')
 
