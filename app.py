@@ -1,6 +1,15 @@
 import io
 import os
 
+# Must be set before onnxruntime/numpy/numba are imported — limits internal
+# thread pools, which each carry their own memory overhead. On a
+# memory-constrained instance (Render free tier), fewer threads means a
+# smaller footprint, at the cost of slightly slower processing.
+os.environ.setdefault('OMP_NUM_THREADS', '1')
+os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
+os.environ.setdefault('MKL_NUM_THREADS', '1')
+os.environ.setdefault('NUMEXPR_NUM_THREADS', '1')
+
 from flask import Flask, request, render_template, send_file, jsonify
 from PIL import Image, ImageDraw
 from rembg import remove, new_session
