@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Passport Photo Maker</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<div class="app">
+  <header class="app-header">
+    <h1>📸 Passport Photo Maker</h1>
+    <p>Upload a photo, remove the background, and print a ready-to-cut A4 sheet.</p>
+  </header>
+
+  <main class="card">
+
+    <!-- Step 1: Upload -->
+    <section class="step">
+      <h2>1. Upload your photo</h2>
+      <label class="upload-box" id="uploadBox">
+        <input type="file" id="photoInput" accept=".jpg,.jpeg,.png,.webp" hidden>
+        <span id="uploadText">Click to choose a photo (JPG / PNG / WEBP)</span>
+      </label>
+    </section>
+
+    <!-- Step 2: Background color -->
+    <section class="step">
+      <h2>2. Choose background color</h2>
+      <div class="color-options">
+        <label class="color-option">
+          <input type="radio" name="color" value="white" checked>
+          <span class="swatch" style="background:#ffffff;border:1px solid #ccc;"></span>
+          White
+        </label>
+        <label class="color-option">
+          <input type="radio" name="color" value="blue">
+          <span class="swatch" style="background:#003399;"></span>
+          Blue
+        </label>
+        <label class="color-option">
+          <input type="radio" name="color" value="sky_blue">
+          <span class="swatch" style="background:#87ceeb;"></span>
+          Sky Blue
+        </label>
+      </div>
+    </section>
+
+    <!-- Step 3: Preview -->
+    <section class="step">
+      <h2>3. Preview</h2>
+      <div class="preview-area">
+        <div class="preview-box">
+          <p class="preview-label">Original</p>
+          <img id="originalPreview" alt="Original photo preview">
+        </div>
+        <div class="preview-box">
+          <p class="preview-label">Background Removed</p>
+          <div id="processedWrap">
+            <img id="processedPreview" alt="Processed photo preview">
+            <div id="processingSpinner" class="spinner" hidden></div>
+          </div>
+        </div>
+      </div>
+      <p id="previewError" class="error-text"></p>
+    </section>
+
+    <!-- Step 4: Size & Quantity -->
+    <section class="step">
+      <h2>4. Size &amp; quantity</h2>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="sizeSelect">Photo size</label>
+          <select id="sizeSelect">
+            {% for key, label in sizes.items() %}
+              <option value="{{ key }}" {% if key == 'passport' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="form-field">
+          <label for="quantityInput">Quantity</label>
+          <input type="number" id="quantityInput" min="1" max="100" value="8">
+        </div>
+      </div>
+      <p class="hint">Photos will be arranged automatically on A4 sheet(s), sized for print at 300 DPI, with cut guides.</p>
+    </section>
+
+    <!-- Step 5: Generate -->
+    <section class="step">
+      <button id="generateBtn" class="primary-btn" disabled>Generate &amp; Download A4 PDF</button>
+      <p id="generateError" class="error-text"></p>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>Runs entirely on your uploaded photo — nothing is stored.</p>
+  </footer>
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
