@@ -3,8 +3,10 @@ services:
     name: passport-photo-maker
     env: python
     plan: free
-    buildCommand: "pip install -r requirements.txt && python -c \"from rembg import new_session; new_session('u2netp')\""
-    startCommand: "gunicorn app:app --timeout 120 --workers 1"
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --timeout 60 --workers 2"
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.9
+      - key: f04047da-2998-49f3-9854-f46d59cc1088
+        sync: false

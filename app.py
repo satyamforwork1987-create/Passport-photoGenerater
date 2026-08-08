@@ -1,18 +1,9 @@
 import io
 import os
 
-# Must be set before onnxruntime/numpy/numba are imported — limits internal
-# thread pools, which each carry their own memory overhead. On a
-# memory-constrained instance (Render free tier), fewer threads means a
-# smaller footprint, at the cost of slightly slower processing.
-os.environ.setdefault('OMP_NUM_THREADS', '1')
-os.environ.setdefault('OPENBLAS_NUM_THREADS', '1')
-os.environ.setdefault('MKL_NUM_THREADS', '1')
-os.environ.setdefault('NUMEXPR_NUM_THREADS', '1')
-
+import requests
 from flask import Flask, request, render_template, send_file, jsonify
 from PIL import Image, ImageDraw
-from rembg import remove, new_session
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 15 * 1024 * 1024  # 15 MB upload limit
@@ -49,17 +40,10 @@ A4_MM = (210, 297)
 SHEET_MARGIN_MM = 5
 PHOTO_GAP_MM = 3
 
-# Lazily-created rembg session (model loads on first use, cached afterwards)
-# u2netp is a distilled, much smaller/lighter model than u2net (~4.7MB vs
-# ~176MB) — used to keep memory usage low on Render's free tier.
-_session = None
-
-
-def get_session():
-    global _session
-    if _session is None:
-        _session = new_session('u2netp')
-    return _session
+REMOVE_BG_API_URL = 'https://api.remove.bg/v1.0/removebg'
+# Set this in Render's dashboard under Environment — never commit the key
+# itself to the repo.
+REMOVE_BG_API_KEY = os.environ.get('REMOVE_BG_API_KEY')
 
 
 def mm_to_px(mm, dpi=DPI):
@@ -77,11 +61,10 @@ def fit_cover(img, target_w, target_h):
     return resized.crop((left, top, left + target_w, top + target_h))
 
 
-# Modern phone photos can be 3000-4000px wide / several MB. Running AI
-# background removal at that resolution uses far more memory than a
-# passport photo needs (final output is only ~500px wide at 300 DPI), and
-# can exceed Render's free-tier RAM limit. Downscale before processing.
-MAX_INPUT_DIMENSION = 1200
+# Modern phone photos can be several MB. Downscaling before upload keeps
+# requests to remove.bg fast — their API caps effective resolution anyway
+# depending on plan, so nothing is lost for a passport-photo use case.
+MAX_INPUT_DIMENSION = 1600
 
 
 def downscale_if_needed(input_bytes):
@@ -97,10 +80,27 @@ def downscale_if_needed(input_bytes):
 
 
 def remove_background_and_recolor(input_bytes, color_key):
-    """Remove background from the uploaded image and composite onto a solid color."""
+    """Remove background via the remove.bg API and composite onto a solid color."""
+    if not REMOVE_BG_API_KEY:
+        raise RuntimeError(
+            'REMOVE_BG_API_KEY is not set. Add it in Render → Environment.'
+        )
+
     input_bytes = downscale_if_needed(input_bytes)
-    output_bytes = remove(input_bytes, session=get_session())
-    cutout = Image.open(io.BytesIO(output_bytes)).convert('RGBA')
+
+    response = requests.post(
+        REMOVE_BG_API_URL,
+        files={'image_file': ('photo.jpg', input_bytes, 'image/jpeg')},
+        data={'size': 'auto'},
+        headers={'X-Api-Key': REMOVE_BG_API_KEY},
+        timeout=30,
+    )
+
+    if response.status_code != 200:
+        detail = response.text[:300]
+        raise RuntimeError(f'remove.bg API error ({response.status_code}): {detail}')
+
+    cutout = Image.open(io.BytesIO(response.content)).convert('RGBA')
 
     bg_rgb = COLORS.get(color_key, COLORS['white'])
     bg = Image.new('RGBA', cutout.size, bg_rgb + (255,))
